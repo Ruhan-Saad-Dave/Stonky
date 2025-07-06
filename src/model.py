@@ -4,7 +4,7 @@ from tensorflow.keras.optimizers import Adam
 from sklearn.preprocessing import MinMaxScaler 
 from sklearn.model_selection import train_test_split 
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-from typing import Tuple
+from typing import Tuple, List
 import pandas as pd 
 import numpy as np 
 import joblib 
@@ -13,9 +13,6 @@ from download import download_data
 from config import *
 
 class Stonky:
-    def __init__(self):
-        pass
-
     def load_data(self, stock:str) -> pd.DataFrame:
         """
         Loads the data of the stock, if not present then downloads it.
@@ -28,7 +25,7 @@ class Stonky:
         try:
             df = pd.read_csv(f"data/{stock}.csv")
         except FileNotFoundError:
-            df = download_data()
+            df = download_data(stock, PERIOD, INTERVAL)
         df = df[FEATURES]
         return df 
     
@@ -92,7 +89,7 @@ class Stonky:
             print("Training model...")
             model.fit(X_train, y_train, epochs=EPOCHS, batch_size=BATCH_SIZE, validation_split=0.1, verbose=1)
             print("\nSaving model...")
-            model.save("models/{stock}_stonky.h5")
+            model.save(f"models/{stock}_stonky.h5")
         return model
     
     def predict(self, stock:str, days:int = 10) -> List[int]:
@@ -210,7 +207,7 @@ class Stonky:
         print("Re-training model...")
         model.fit(X_train, y_train, epochs=10, batch_size=32, validation_split=0.1, verbose=1)
         print("\nSaving model...")
-        model.save("models/{stock}_stonky.h5")
+        model.save(f"models/{stock}_stonky.h5")
 
 if __name__ == "__main__":
     stonky = Stonky()
