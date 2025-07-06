@@ -1,6 +1,3 @@
-def main():
-    print("Hello from stock-smith!")
+from src.download import *
 
-
-if __name__ == "__main__":
-    main()
+download_long_data("GOOG", "1y", "1d")
