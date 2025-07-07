@@ -2,9 +2,9 @@ from datetime import datetime
 import time
 import os
 
-from download import download_data
-from model import Stonky
-from config import *
+from src.download import download_data
+from src.model import Stonky
+from src.config import *
 
 def refresh():
     """

@@ -1,6 +1,6 @@
 # Stocky: Your Personal Stock Prediction Assistant 📈
 
-![Stonk Guy Meme Placeholder](path/to/your/stonk_guy_meme.png)
+![Stonk Guy Meme Placeholder](image/stonky.jpg)
 
 Welcome to **Stocky**, your go-to tool for predicting stock prices with the power of AI! Whether you're a seasoned investor or just curious about future market trends, Stocky provides an intuitive way to get insights into stock movements.
 
@@ -42,9 +42,8 @@ Ensure you have Python 3.9 or higher installed. We use `uv` as our package manag
 
 3.  **Install dependencies using `uv`:**
     ```bash
-    uv pip install -r requirements.txt
+    uv sync
     ```
-    *(You might need to generate `requirements.txt` from `pyproject.toml` if it's not present. A simple `uv pip freeze > requirements.txt` can help.)*
 
 ## 🏃 How to Run Stocky
 
@@ -52,7 +51,7 @@ Stocky runs as a web application, accessible through your browser.
 
 1.  **Start the application:**
     ```bash
-    uv run main.py
+    uvicorn main:app 
     ```
 
 2.  **Access the interface:**
@@ -95,4 +94,4 @@ For easy deployment, Stocky comes with a `Dockerfile`.
 
 ---
 
-*Made with ❤️ by Your Name/Team Name*
+*Made with ❤️ by Ruhan Saad Dave*

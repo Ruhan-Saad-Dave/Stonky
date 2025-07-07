@@ -1,12 +1,12 @@
 
 import gradio as gr
 import pandas as pd
-import plotly.graph_objects as go
+import matplotlib.pyplot as plt
 from datetime import datetime, timedelta
 import numpy as np
 from sklearn.model_selection import train_test_split
 
-from model import Stonky
+from src.model import Stonky
 
 stonky = Stonky()
 
@@ -20,11 +20,17 @@ def predict_price(ticker, days):
     # Get historical data for the plot
     historical_data = stonky.load_data(ticker).tail(30)
     
-    # Create the plot
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=historical_data['Date'], y=historical_data['Close'], mode='lines', name='Historical Prices'))
-    fig.add_trace(go.Scatter(x=prediction_df['Date'], y=prediction_df['Predicted Price'], mode='lines', name='Predicted Prices'))
-    
+    # --- Matplotlib plot ---
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.plot(historical_data['Date'], historical_data['Close'], label='Historical Prices')
+    ax.plot(prediction_df['Date'], prediction_df['Predicted Price'], label='Predicted Prices')
+    ax.set_title(f"{ticker} Stock Price Prediction")
+    ax.set_xlabel("Date")
+    ax.set_ylabel("Price")
+    ax.legend()
+    plt.xticks(rotation=45)
+    plt.tight_layout()
+
     return fig, prediction_df
 
 def evaluate_performance(ticker):
@@ -59,10 +65,15 @@ def evaluate_performance(ticker):
     unscaled_y_test = scaler.inverse_transform(dummy_y_test)[:, 3]
     
     # Create the plot
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=np.arange(len(unscaled_y_test)), y=unscaled_y_test, mode='lines', name='Actual Prices'))
-    fig.add_trace(go.Scatter(x=np.arange(len(unscaled_preds)), y=unscaled_preds, mode='lines', name='Predicted Prices'))
-    
+    # --- Matplotlib plot ---
+    fig, ax = plt.subplots(figsize=(10, 5))
+    ax.plot(unscaled_y_test, label="Actual Prices")
+    ax.plot(unscaled_preds, label="Predicted Prices")
+    ax.set_title(f"Model Evaluation - {ticker}")
+    ax.set_xlabel("Time")
+    ax.set_ylabel("Price")
+    ax.legend()
+    plt.tight_layout()    
     return fig, metrics_df
 
 
@@ -103,9 +114,9 @@ def create_gradio_app():
             gr.Markdown("""
             # Stock Prediction App
 
-            **GitHub Repository:** [https://github.com/your-repo-link](https://github.com/your-repo-link)
+            **GitHub Repository:** [https://github.com/Ruhan-Saad-Dave/Stonky](https://github.com/Ruhan-Saad-Dave/Stonky)
 
-            **Documentation:** [https://your-docs-link.com](https://your-docs-link.com)
+            **Documentation:**  Type "/docs" after the base URL
 
             ## Ticker Symbol Cheatsheet
             """)

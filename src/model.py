@@ -9,8 +9,8 @@ import pandas as pd
 import numpy as np 
 import joblib 
 
-from download import download_data
-from config import *
+from src.download import download_data
+from src.config import *
 
 class Stonky:
     def load_data(self, stock:str) -> pd.DataFrame:

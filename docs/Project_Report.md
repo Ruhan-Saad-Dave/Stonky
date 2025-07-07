@@ -74,5 +74,29 @@ The next phase of the project will focus on:
 
 - **Hyperparameter Tuning:** Optimizing the model's architecture and training parameters to improve accuracy.
 - **Feature Engineering:** Incorporating additional data sources, such as technical indicators or sentiment analysis, to enhance predictive power.
-- **Deployment:** Creating a user-friendly interface (e.g., a web application or API) to interact with the model.
 - **Advanced Models:** Exploring more complex architectures, such as attention-based models or transformers, for potentially better performance.
+
+## 6. Phase 3: API Development, User Interface, and Deployment Preparation
+
+Phase 3 focused on making the stock prediction system accessible and deployable through a user-friendly interface and robust API endpoints.
+
+### 6.1. API Development with FastAPI
+A set of RESTful API endpoints were implemented using FastAPI, providing programmatic access to the system's core functionalities:
+- `/predict`: Allows users to request stock price predictions.
+- `/refresh`: Triggers the model retraining process.
+- `/evaluate`: Provides model performance metrics.
+
+These endpoints enhance the system's interoperability and enable integration with other applications.
+
+### 6.2. Gradio User Interface
+A web-based user interface was developed using Gradio, offering an intuitive way for users to interact with the stock prediction system. The interface includes:
+- A dedicated tab for performing real-time stock price predictions.
+- A tab to visualize and check the performance of the deployed models, providing insights into their accuracy and reliability.
+
+This interface significantly improves the user experience and makes the system accessible to non-technical users.
+
+### 6.3. Documentation Updates
+The project documentation was comprehensively updated to reflect the new API endpoints, Gradio interface, and deployment procedures. This ensures that users and developers have clear guidance on how to use and maintain the system.
+
+### 6.4. Dockerization for Deployment
+A `Dockerfile` was created to containerize the entire application. This prepares the system for seamless deployment across various environments, ensuring consistency and simplifying dependency management. Dockerization facilitates easy hosting and scaling of the application.

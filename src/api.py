@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 from typing import List
 
-from model import Stonky
+from src.model import Stonky
 
 router = APIRouter()
 stonky = Stonky()
