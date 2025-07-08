@@ -8,7 +8,7 @@ COPY . /app
 RUN pip install uv
 
 # Install dependencies using uv
-RUN uv pip install -r requirements.txt
+RUN uv sync
 
 EXPOSE 8000
 
