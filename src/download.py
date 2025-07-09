@@ -1,7 +1,14 @@
-import yfinance as yf 
-import pandas as pd
+"""
+This module contains functions for downloading stock data.
+"""
+import logging
 
-def download_data(ticker:str, period:str = "1y", interval:str = "1d") -> pd.DataFrame:
+import pandas as pd
+import yfinance as yf 
+
+logger = logging.getLogger(__name__)
+
+def download_data(ticker:str) -> pd.DataFrame:
     """
     Downloads the stock data for the given ticker symbol and save it as CSV file.
 
@@ -12,9 +19,14 @@ def download_data(ticker:str, period:str = "1y", interval:str = "1d") -> pd.Data
     Returns:
         The pandas dataframe containing the stock price of specifies period and interval.
     """
-    df = yf.Ticker("GOOG").history(period = "1y", interval = "1d")
-    df = df.reset_index()
-    df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
-    df = df.drop(columns = ["Dividends", "Stock Splits"])
-    df.to_csv(rf"data/{ticker}.csv")
-    return df
+    logger.info("Downloading stock data of %s", ticker)
+    try:
+        df = yf.Ticker(ticker).history(period = "1y", interval = "1d")
+        df = df.reset_index()
+        df["Date"] = df["Date"].dt.strftime("%Y-%m-%d")
+        df = df.drop(columns = ["Dividends", "Stock Splits"])
+        df.to_csv(rf"data/{ticker}.csv")
+        return df
+    except Exception as e:
+        logger.exception("Unable to download data on %s: %s", ticker, e)
+        raise

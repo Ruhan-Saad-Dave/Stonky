@@ -1,0 +1,56 @@
+2025-07-09 22:09:54,733 - httpx - INFO - HTTP Request: GET https://api.gradio.app/pkg-version "HTTP/1.1 200 OK"
+2025-07-09 22:14:20,824 - src.model - INFO - Performing prediction on GOOG for 7 days.
+2025-07-09 22:14:20,825 - src.model - INFO - Loading prediction model for GOOG
+2025-07-09 22:14:20,911 - src.model - WARNING - No model was trained before on the stock: GOOG. Attempting to create one.
+2025-07-09 22:14:20,911 - src.model - INFO - Loading stock data for GOOG
+2025-07-09 22:14:21,149 - src.model - INFO - Successfully loaded the data.
+2025-07-09 22:14:21,363 - src.model - INFO - Loading scaler for GOOG
+2025-07-09 22:14:21,454 - src.model - INFO - Scaler loaded successfully.
+2025-07-09 22:14:21,549 - src.model - INFO - Training set for GOOG created successfully. Creating model...
+2025-07-09 22:14:26,073 - src.model - INFO - Compiling model.
+2025-07-09 22:14:26,092 - src.model - INFO - Training model...
+2025-07-09 22:14:44,214 - src.model - INFO - Training successfull. Saving model...
+2025-07-09 22:14:44,215 - absl - WARNING - You are saving your model as an HDF5 file via `model.save()` or `keras.saving.save_model(model)`. This file format is considered legacy. We recommend using instead the native Keras format, e.g. `model.save('my_model.keras')` or `keras.saving.save_model(model, 'my_model.keras')`. 
+2025-07-09 22:14:44,853 - src.model - INFO - Model saved successfully and is ready to perform predictions.
+2025-07-09 22:14:44,854 - src.model - INFO - Loading scaler for GOOG
+2025-07-09 22:14:44,856 - src.model - INFO - Scaler loaded successfully.
+2025-07-09 22:14:44,858 - src.model - INFO - Loading stock data for GOOG
+2025-07-09 22:14:44,865 - src.model - INFO - Successfully loaded the data.
+2025-07-09 22:14:44,871 - src.model - INFO - Starting prediction...
+2025-07-09 22:14:46,630 - src.model - INFO - Stock price has been predicted: [np.float64(176.47821604885394), np.float64(176.78919717961344), np.float64(177.08199800331204), np.float64(177.36032164730022), np.float64(177.62752322108645), np.float64(177.88499479603888), np.float64(178.13410669241057)]
+2025-07-09 22:14:46,630 - src.model - INFO - Loading stock data for GOOG
+2025-07-09 22:14:46,630 - src.model - INFO - Successfully loaded the data.
+2025-07-09 22:16:21,486 - src.model - INFO - Performing prediction on GOOG for 7 days.
+2025-07-09 22:16:21,489 - src.model - INFO - Loading prediction model for GOOG
+2025-07-09 22:16:21,658 - src.model - ERROR - Unable to perform prediction on stock GOOG: Could not locate function 'mse'. Make sure custom classes are decorated with `@keras.saving.register_keras_serializable()`. Full object config: {'module': 'keras.metrics', 'class_name': 'function', 'config': 'mse', 'registered_name': 'mse'}
+Traceback (most recent call last):
+  File "C:\Users\ruhan\Stonky\src\model.py", line 152, in predict
+    model = self.load_stonky(stock)
+            ^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ruhan\Stonky\src\model.py", line 94, in load_stonky
+    model = load_model(f"models/{stock}_stonky.h5")
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ruhan\Stonky\.venv\Lib\site-packages\keras\src\saving\saving_api.py", line 196, in load_model
+    return legacy_h5_format.load_model_from_hdf5(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ruhan\Stonky\.venv\Lib\site-packages\keras\src\legacy\saving\legacy_h5_format.py", line 155, in load_model_from_hdf5
+    **saving_utils.compile_args_from_training_config(
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ruhan\Stonky\.venv\Lib\site-packages\keras\src\legacy\saving\saving_utils.py", line 146, in compile_args_from_training_config
+    loss = _deserialize_nested_config(losses.deserialize, loss_config)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ruhan\Stonky\.venv\Lib\site-packages\keras\src\legacy\saving\saving_utils.py", line 205, in _deserialize_nested_config
+    return deserialize_fn(config)
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ruhan\Stonky\.venv\Lib\site-packages\keras\src\losses\__init__.py", line 155, in deserialize
+    return serialization_lib.deserialize_keras_object(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ruhan\Stonky\.venv\Lib\site-packages\keras\src\saving\serialization_lib.py", line 575, in deserialize_keras_object
+    return deserialize_keras_object(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ruhan\Stonky\.venv\Lib\site-packages\keras\src\saving\serialization_lib.py", line 678, in deserialize_keras_object
+    return _retrieve_class_or_fn(
+           ^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\ruhan\Stonky\.venv\Lib\site-packages\keras\src\saving\serialization_lib.py", line 810, in _retrieve_class_or_fn
+    raise TypeError(
+TypeError: Could not locate function 'mse'. Make sure custom classes are decorated with `@keras.saving.register_keras_serializable()`. Full object config: {'module': 'keras.metrics', 'class_name': 'function', 'config': 'mse', 'registered_name': 'mse'}

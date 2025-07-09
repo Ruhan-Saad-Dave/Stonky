@@ -1,20 +1,29 @@
 
-import gradio as gr
-import pandas as pd
-import matplotlib.pyplot as plt
+"""
+This module provides a Gradio web interface for the Stonky application.
+"""
 from datetime import datetime, timedelta
+import json
+import logging
+
+import gradio as gr
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 from sklearn.model_selection import train_test_split
 
-from src.model import Stonky
+from .model import Stonky
 
+logger = logging.getLogger(__name__)
 stonky = Stonky()
 
 def predict_price(ticker, days):
+    """Predicts the stock price and displays it in a plot and a table."""
     predictions = stonky.predict(ticker, days)
     
     # Create a DataFrame for the predictions
-    future_dates = [(datetime.now() + timedelta(days=i)).strftime('%Y-%m-%d') for i in range(1, days + 1)]
+    future_dates = [(datetime.now() + timedelta(days=i)).strftime('%Y-%m-%d') 
+                    for i in range(1, days + 1)]
     prediction_df = pd.DataFrame({'Date': future_dates, 'Predicted Price': predictions})
     
     # Get historical data for the plot
@@ -34,10 +43,12 @@ def predict_price(ticker, days):
     return fig, prediction_df
 
 def evaluate_performance(ticker):
+    """Evaluates the model performance and displays it in a plot and a table."""
     mse, mae, r2 = stonky.evaluate(ticker)
     
     # Create a DataFrame for the metrics
-    metrics_df = pd.DataFrame({'Metric': ['Mean Squared Error', 'Mean Absolute Error', 'R2 Score'], 'Value': [mse, mae, r2]})
+    metrics_df = pd.DataFrame({'Metric': ['Mean Squared Error', 'Mean Absolute Error', 'R2 Score'], 
+                               'Value': [mse, mae, r2]})
     
     # Get historical and predicted data for the plot
     model = stonky.load_stonky(ticker)
@@ -51,9 +62,9 @@ def evaluate_performance(ticker):
         seq_y = scaled_df[i, 3]
         sequences.append(seq_x)
         targets.append(seq_y)
-    X, y = np.array(sequences), np.array(targets)
-    _, X_test, _, y_test = train_test_split(X, y, shuffle=True, test_size=0.2, random_state=42)
-    preds_scaled = model.predict(X_test)
+    x, y = np.array(sequences), np.array(targets)
+    _, x_test, _, y_test = train_test_split(x, y, shuffle=True, test_size=0.2, random_state=42)
+    preds_scaled = model.predict(x_test)
 
     # Inverse transform predictions and actuals to their original scale
     dummy_preds = np.zeros((len(preds_scaled), 5))
@@ -78,6 +89,7 @@ def evaluate_performance(ticker):
 
 
 def create_gradio_app():
+    """Creates the Gradio application interface."""
     with gr.Blocks() as demo:
         with gr.Tab("Prediction"):
             with gr.Row():
@@ -89,7 +101,8 @@ def create_gradio_app():
                     prediction_plot = gr.Plot()
                     prediction_table = gr.DataFrame()
 
-        predict_button.click(
+        gr.on( # pylint: disable=no-member
+            predict_button.click,
             predict_price,
             inputs=[ticker_input, days_input],
             outputs=[prediction_plot, prediction_table]
@@ -104,7 +117,8 @@ def create_gradio_app():
                     performance_plot = gr.Plot()
                     metrics_table = gr.DataFrame()
 
-        performance_button.click(
+        gr.on( # pylint: disable=no-member
+            performance_button.click,
             evaluate_performance,
             inputs=[performance_ticker_input],
             outputs=[performance_plot, metrics_table]
@@ -121,11 +135,11 @@ def create_gradio_app():
             ## Ticker Symbol Cheatsheet
             """)
             
-            import json
-            with open("data/ticker_cheatsheet.json", "r") as f:
+            with open("data/ticker_cheatsheet.json", "r", encoding="utf-8") as f:
                 cheatsheet_data = json.load(f)
             
-            ticker_cheatsheet = gr.DataFrame(pd.DataFrame(list(cheatsheet_data.items()), columns=["Company", "Ticker Symbol"]))
+            gr.DataFrame(pd.DataFrame(list(cheatsheet_data.items()), 
+                                                               columns=["Company", "Ticker Symbol"]))
 
     return demo
 

@@ -1,69 +1,87 @@
+"""
+This module contains functions for refreshing the stock prediction model.
+"""
 from datetime import datetime
-import time
+import logging
 import os
+import time
 
-from src.download import download_data
-from src.model import Stonky
-from src.config import *
+from .download import download_data
+from .model import Stonky
+from .config import (
+    CHECK_INTERVAL_SECONDS,
+    MAE_PERCENTAGE_THRESHOLD,
+    PERIOD,
+    INTERVAL,
+    R2_THRESHOLD,
+)
+
+logger = logging.getLogger(__name__)
 
 def refresh():
     """
     Refreshes a model every month or if the model performance is low (checked everyday).
     """
-    if not os.path.exists("data"):
-        print(f"The folder 'data' does not exist. File an issue on github.")
-        return
-    
-    stonky = Stonky()
-    print("Starting the model refreshing service...")
-
-    while True:
-        print(f"\n--- Running scheduled check at {datetime.now()} ---")
-        stocks = []
-        for file_name in os.listdir("data"):
-            file_path = os.path.join("data", file_name)
-            if os.path.isfile(file_path):
-                stocks.append(file_name[:-4]) # remove the .csv extention
-                download_data(stock, PERIOD, INTERVAL) # Refresh data daily
+    try:
+        logger.info("Starting refresh module...")
+        if not os.path.exists("data"):
+            logger.error("The folder 'data' does not exist. File an issue on github.")
+            return
         
-        # Check if 1st day of the month
-        today = datetime.today()
-        if today.day == 1:
-            first_day = True
-        else:
-            first_day = False
+        stonky = Stonky()
+        logger.info("Starting the model refreshing service...")
 
-        for stock in stocks:
-            if not first_day:
-                should_refresh = False
-                try:
-                    latest_data = stonky.load_data(stock)
-                    last_close_price = latest_data['Close'].iloc[-1]
-                    dynamic_mae_threshold = last_close_price * MAE_PERCENTAGE_THRESHOLD
-                    print(f"Last close price: ${last_close_price:.2f}. Dynamic MAE Threshold set to ${dynamic_mae_threshold:.2f}")
-
-                    mse, mae, r2 = stonky.evaluate(stock)
-                    print(f"Current Performance - MSE: {mse:.2f}, MAE: {mae:.2f}, R²: {r2:.2f}")
-                    
-                    if r2 < R2_THRESHOLD or mae > dynamic_mae_threshold:
-                        print(f"Performance threshold breached (R²: {r2:.2f} < {R2_THRESHOLD} or MAE: {mae:.2f} > {dynamic_mae_threshold:.2f}).")
-                        should_refresh = True
-                    else:
-                        print("Model performance is within acceptable limits.")
-                except Exception as e:
-                    print(f"Could not evaluate model. Error: {e}. Triggering refresh as a precaution.")
-                    should_refresh = True
+        while True:
+            logger.info("--- Running scheduled check at %s ---", datetime.now())
+            stocks = []
+            for file_name in os.listdir("data"):
+                file_path = os.path.join("data", file_name)
+                if os.path.isfile(file_path):
+                    stock_name = file_name[:-4]
+                    stocks.append(stock_name) # remove the .csv extention
+                    download_data(stock_name, PERIOD, INTERVAL) # Refresh data daily
+            logger.info("All stock data has been refreshed.")
             
-            if first_day or should_refresh:
-                print(f"\n>>> Refresh required. Retraining model for {stock}... <<<")
-                try:
-                    stonky.refresh_stonky(stock)
-                    print("Model refresh completed successfully.")
-                except Exception as e:
-                    print(f"An error occurred during model refresh: {e}")
-            else:
-                print("\nNo refresh required. System is healthy.")
+            # Check if 1st day of the month
+            today = datetime.today()
+            first_day = (today.day == 1)
+
+            for stock in stocks:
+                should_refresh = False
+                if not first_day:
+                    try:
+                        latest_data = stonky.load_data(stock)
+                        last_close_price = latest_data['Close'].iloc[-1]
+                        dynamic_mae_threshold = last_close_price * MAE_PERCENTAGE_THRESHOLD
+                        logger.debug("Last close price: $%.2f. "
+                                   "Dynamic MAE Threshold set to $%.2f", last_close_price, dynamic_mae_threshold)
+
+                        mse, mae, r2 = stonky.evaluate(stock)
+                        logger.debug("Current Performance - MSE: %.2f, MAE: %.2f, R²: %.2f", mse, mae, r2)
+                        
+                        if r2 < R2_THRESHOLD or mae > dynamic_mae_threshold:
+                            logger.info("Performance threshold breached (R²: %.2f < %s "
+                                       "or MAE: %.2f > %.2f).", r2, R2_THRESHOLD, mae, dynamic_mae_threshold)
+                            should_refresh = True
+                        else:
+                            logger.info("Model performance is within acceptable limits.")
+                    except Exception as e:
+                        logger.exception("Could not evaluate model. Error: %s. Triggering refresh as a precaution.", e)
+                        should_refresh = True
+                
+                if first_day or should_refresh:
+                    logger.info(">>> Refresh required. Retraining model for %s... <<<", stock)
+                    try:
+                        stonky.refresh_stonky(stock)
+                        logger.info("Model refresh completed successfully.")
+                    except Exception as e:
+                        logger.exception("An error occurred during model refresh: %s", e)
+                else:
+                    logger.info("No refresh required. System is healthy.")
 
 
-        print(f"\nNext check scheduled in {CHECK_INTERVAL_SECONDS / 3600:.1f} hours.")
-        time.sleep(CHECK_INTERVAL_SECONDS)
+            logger.info("Next check scheduled in %.1f hours.", CHECK_INTERVAL_SECONDS / 3600)
+            time.sleep(CHECK_INTERVAL_SECONDS)
+    except Exception as e:
+        logger.critical("Something went wrong in the refresh system: %s", e)
+        raise

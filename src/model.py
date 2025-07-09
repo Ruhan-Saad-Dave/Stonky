@@ -1,18 +1,33 @@
-from tensorflow.keras.models import Sequential, load_model
-from tensorflow.keras.layers import LSTM, Dense, Dropout 
-from tensorflow.keras.optimizers import Adam 
-from sklearn.preprocessing import MinMaxScaler 
-from sklearn.model_selection import train_test_split 
-from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
-from typing import Tuple, List
-import pandas as pd 
-import numpy as np 
-import joblib 
+"""
+This module contains the Stonky class, which is the main class for the stock prediction model.
+"""
+import logging
+from typing import List, Tuple
 
-from src.download import download_data
-from src.config import *
+import joblib
+import numpy as np
+import pandas as pd 
+from keras.layers import LSTM, Dense, Dropout
+from keras.models import Sequential, load_model
+from keras.optimizers import Adam
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler 
+
+from .config import (
+    BATCH_SIZE,
+    EPOCHS,
+    FEATURES,
+    INTERVAL,
+    LOOKBACK,
+    PERIOD,
+)
+from .download import download_data
+
+logger = logging.getLogger(__name__)
 
 class Stonky:
+    """The main class for the stock prediction model."""
     def load_data(self, stock:str) -> pd.DataFrame:
         """
         Loads the data of the stock, if not present then downloads it.
@@ -22,10 +37,19 @@ class Stonky:
         Returns:
             Pandas DataFrame of the related price info of the required stock.
         """
+        logger.info(f"Loading stock data for {stock}")
         try:
             df = pd.read_csv(f"data/{stock}.csv")
+            logger.info("Successfully loaded the data.")
         except FileNotFoundError:
-            df = download_data(stock, PERIOD, INTERVAL)
+            logger.warning("Data on the required stock does not exist. "
+                           "Attempting to download the data.")
+            try:
+                df = download_data(stock, PERIOD, INTERVAL)
+                logger.info(f"Data for {stock} has been downloaded.")
+            except Exception as e:
+                logger.exception(f"Failed to download data of {stock}: {e}")
+                raise
         df = df[FEATURES]
         return df 
     
@@ -38,13 +62,22 @@ class Stonky:
         Returns:
             A MinMaxScaler scaled on the corresponding stock data.
         """
+        logger.info(f"Loading scaler for {stock}")
         try:
             scaler = joblib.load(f"models/{stock}_scaler.pkl")
+            logger.info("Scaler loaded successfully.")
         except FileNotFoundError:
-            df = self.load_data(stock)
-            scaler = MinMaxScaler()
-            scaler.fit(df)
-            joblib.dump(scaler, f"models/{stock}_scaler.pkl")
+            logger.warning(f"Scaler for {stock} does not exist. Attempting to creat one.")
+            try:
+                df = self.load_data(stock)
+                scaler = MinMaxScaler()
+                scaler.fit(df)
+                logger.info("Scaler created successfully.")
+                joblib.dump(scaler, f"models/{stock}_scaler.pkl")
+                logger.info("Scaler saved successfully.")
+            except Exception as e:
+                logger.critical(f"Unable to create scaler for {stock}: {e}")
+                raise
         return scaler
     
     def load_stonky(self, stock:str) -> Sequential:
@@ -56,81 +89,107 @@ class Stonky:
         Returns:
             The LSTM model trained on the required stock
         """
+        logger.info(f"Loading prediction model for {stock}")
         try:
             model = load_model(f"models/{stock}_stonky.h5")
+            logger.info("Model loaded successfully.")
         except FileNotFoundError:
-            print(f"No model was trained before on the stock: {stock}")
-            df = self.load_data(stock)
-            scaler = self.load_scaler(stock)
-            scaled_df = scaler.transform(df)
-            sequences = []
-            targets =[]
-            for i in range(60, len(scaled_df)):
-                seq_x = scaled_df[i - LOOKBACK : i]
-                seq_y = scaled_df[i, FEATURES.index("Close")]
-                sequences.append(seq_x)
-                targets.append(seq_y)
-            X, y = np.array(sequences), np.array(targets)
-            X_train, _, y_train, _ = train_test_split(X, y, shuffle=True, test_size=0.2, random_state=42)
+            logger.warning(f"No model was trained before on the stock: {stock}. "
+                           f"Attempting to create one.")
+            try:
+                df = self.load_data(stock)
+                scaler = self.load_scaler(stock)
+                scaled_df = scaler.transform(df)
+                logger.debug("Scaler and data loaded successfully")
+                sequences = []
+                targets =[]
+                for i in range(60, len(scaled_df)):
+                    seq_x = scaled_df[i - LOOKBACK : i]
+                    seq_y = scaled_df[i, FEATURES.index("Close")]
+                    sequences.append(seq_x)
+                    targets.append(seq_y)
+                x, y = np.array(sequences), np.array(targets)
+                x_train, _, y_train, _ = train_test_split(x, y, shuffle=True, 
+                                                              test_size=0.2, random_state=42)
+                logger.info(f"Training set for {stock} created successfully. Creating model...")
 
-            model = Sequential([
-                LSTM(64, return_sequences=True, input_shape=(X.shape[1], X.shape[2])),
-                Dropout(0.2),
-                LSTM(32),
-                Dropout(0.2),
-                Dense(1)
-            ])
-            model.compile(
-                optimizer=Adam(learning_rate=0.001),
-                loss="mse",
-                metrics=["mae"]
-            )
+                model = Sequential([
+                    LSTM(64, return_sequences=True, input_shape=(x.shape[1], x.shape[2])),
+                    Dropout(0.2),
+                    LSTM(32),
+                    Dropout(0.2),
+                    Dense(1)
+                ])
+                logger.info("Compiling model.")
+                model.compile(
+                    optimizer=Adam(learning_rate=0.001),
+                    loss="mse",
+                    metrics=["mae"]
+                )
 
-            print("Training model...")
-            model.fit(X_train, y_train, epochs=EPOCHS, batch_size=BATCH_SIZE, validation_split=0.1, verbose=1)
-            print("\nSaving model...")
-            model.save(f"models/{stock}_stonky.h5")
+                logger.info("Training model...")
+                model.fit(x_train, y_train, epochs=EPOCHS, batch_size=BATCH_SIZE, validation_split=0.1, verbose=1)
+                logger.info("Training successfull. Saving model...")
+                model.save(f"models/{stock}_stonky.h5")
+                logger.info("Model saved successfully and is ready to perform predictions.")
+            except Exception as e:
+                logger.critical(f"Unable to create a model: {e}")
+                raise
         return model
     
-    def predict(self, stock:str, days:int = 10) -> List[int]:
+    def predict(self, stock:str, days:int = 10) -> List[float]:
         """
-        pass
-        """
-        model = self.load_stonky(stock)
-        scaler = self.load_scaler(stock)
-        data = self.load_data(stock)
-        scaled_df = scaler.transform(data)
-        future_predictions = []
-        current_sequence = list(scaled_df[-LOOKBACK:])
+        Makes prediction of a stock the specified number of days into the future.
 
-        for _ in range(days):
-            # Reshape the sequence for model input
-            input_for_prediction = np.array(current_sequence).reshape(1, LOOKBACK, len(FEATURES))
-            
-            # Predict the next scaled value
-            scaled_prediction = model.predict(input_for_prediction)[0, 0]
-            
-            # Create a new row for the predicted day (using the prediction for all price features)
-            new_row = np.zeros(len(FEATURES))
-            new_row[FEATURES.index("Open")] = scaled_prediction
-            new_row[FEATURES.index("High")] = scaled_prediction
-            new_row[FEATURES.index("Low")] = scaled_prediction
-            new_row[FEATURES.index("Close")] = scaled_prediction
-            # Volume can be left as 0 or estimated differently if needed
-            
-            # Inverse transform the 'Close' price to its original scale for reporting
-            dummy_pred = np.zeros((1, len(FEATURES)))
-            dummy_pred[0, FEATURES.index("Close")] = scaled_prediction
-            unscaled_future_price = scaler.inverse_transform(dummy_pred)[0, FEATURES.index("Close")]
-            future_predictions.append(unscaled_future_price)
-            
-            # Append the new predicted row to the sequence
-            current_sequence.append(new_row)
-            # Remove the oldest row to maintain the lookback window
-            current_sequence.pop(0)
+        Args:
+            stock (str): Stock ticker symbol in yahoo finance format.
+            days (int): Number of days into the future to predict.
+        Returns:
+            A list of predicted stock prices for the future.
+        """
+        logger.info(f"Performing prediction on {stock} for {days} days.")
+        try:
+            model = self.load_stonky(stock)
+            scaler = self.load_scaler(stock)
+            data = self.load_data(stock)
+            logger.debug("Model, data and scaler loaded successfully.")
+            scaled_df = scaler.transform(data)
+            future_predictions = []
+            current_sequence = list(scaled_df[-LOOKBACK:])
+
+            logger.info("Starting prediction...")
+            for _ in range(days):
+                # Reshape the sequence for model input
+                input_for_prediction = np.array(current_sequence).reshape(1, LOOKBACK, len(FEATURES))
+                
+                # Predict the next scaled value
+                scaled_prediction = model.predict(input_for_prediction, verbose=0)[0, 0]
+                
+                # Create a new row for the predicted day (using the prediction for all price features)
+                new_row = np.zeros(len(FEATURES))
+                new_row[FEATURES.index("Open")] = scaled_prediction
+                new_row[FEATURES.index("High")] = scaled_prediction
+                new_row[FEATURES.index("Low")] = scaled_prediction
+                new_row[FEATURES.index("Close")] = scaled_prediction
+                # Volume can be left as 0 or estimated differently if needed
+                
+                # Inverse transform the 'Close' price to its original scale for reporting
+                dummy_pred = np.zeros((1, len(FEATURES)))
+                dummy_pred[0, FEATURES.index("Close")] = scaled_prediction
+                unscaled_future_price = scaler.inverse_transform(dummy_pred)[0, FEATURES.index("Close")]
+                future_predictions.append(unscaled_future_price)
+                
+                # Append the new predicted row to the sequence
+                current_sequence.append(new_row)
+                # Remove the oldest row to maintain the lookback window
+                current_sequence.pop(0)
+            logger.info(f"Stock price has been predicted: {future_predictions}")
+        except Exception as e:
+            logger.exception(f"Unable to perform prediction on stock {stock}: {e}")
+            raise
         return future_predictions
     
-    def evaluate(self, stock:str) -> Tuple[int]:
+    def evaluate(self, stock:str) -> Tuple[float, float, float]:
         """
         Evaluates the prediction model of a particular stock.
 
@@ -139,34 +198,44 @@ class Stonky:
         Returns:
             Mean Squared Error, Mean Absolute Error and R2 score.
         """
-        model = self.load_stonky(stock)
-        scaler = self.load_scaler(stock)
-        df = self.load_data(stock)
-        scaled_df = scaler.transform(df)
-        sequences = []
-        targets =[]
-        for i in range(60, len(scaled_df)):
-            seq_x = scaled_df[i - LOOKBACK : i]
-            seq_y = scaled_df[i, FEATURES.index("Close")]
-            sequences.append(seq_x)
-            targets.append(seq_y)
-        X, y = np.array(sequences), np.array(targets)
-        _, X_test, _, y_test = train_test_split(X, y, shuffle=True, test_size=0.2, random_state=42)
-        preds_scaled = model.predict(X_test)
+        logger.info(f"Evaluating performance of model for {stock}")
+        try:
+            model = self.load_stonky(stock)
+            scaler = self.load_scaler(stock)
+            df = self.load_data(stock)
+            logger.debug("Model, data and scaler has been loaded.")
+            scaled_df = scaler.transform(df)
+            sequences = []
+            targets =[]
+            logger.info("Creating testing set.")
+            for i in range(60, len(scaled_df)):
+                seq_x = scaled_df[i - LOOKBACK : i]
+                seq_y = scaled_df[i, FEATURES.index("Close")]
+                sequences.append(seq_x)
+                targets.append(seq_y)
+            x, y = np.array(sequences), np.array(targets)
+            _, x_test, _, y_test = train_test_split(x, y, shuffle=True, test_size=0.2, random_state=42)
+            logger.info("Testing set has been created. Performing predictions.")
+            preds_scaled = model.predict(x_test, verbose=0)
 
-        # Inverse transform predictions and actuals to their original scale
-        dummy_preds = np.zeros((len(preds_scaled), len(FEATURES)))
-        dummy_preds[:, FEATURES.index("Close")] = preds_scaled.flatten()
-        unscaled_preds = scaler.inverse_transform(dummy_preds)[:, FEATURES.index("Close")]
+            # Inverse transform predictions and actuals to their original scale
+            dummy_preds = np.zeros((len(preds_scaled), len(FEATURES)))
+            dummy_preds[:, FEATURES.index("Close")] = preds_scaled.flatten()
+            unscaled_preds = scaler.inverse_transform(dummy_preds)[:, FEATURES.index("Close")]
 
-        dummy_y_test = np.zeros((len(y_test), len(FEATURES)))
-        dummy_y_test[:, FEATURES.index("Close")] = y_test.flatten()
-        unscaled_y_test = scaler.inverse_transform(dummy_y_test)[:, FEATURES.index("Close")]
+            dummy_y_test = np.zeros((len(y_test), len(FEATURES)))
+            dummy_y_test[:, FEATURES.index("Close")] = y_test.flatten()
+            unscaled_y_test = scaler.inverse_transform(dummy_y_test)[:, FEATURES.index("Close")]
 
-        # Calculate and print performance metrics
-        mse = mean_squared_error(unscaled_y_test, unscaled_preds)
-        mae = mean_absolute_error(unscaled_y_test, unscaled_preds)
-        r2 = r2_score(unscaled_y_test, unscaled_preds)
+            # Calculate and print performance metrics
+            logger.info("Calculating performance...")
+            mse = mean_squared_error(unscaled_y_test, unscaled_preds)
+            mae = mean_absolute_error(unscaled_y_test, unscaled_preds)
+            r2 = r2_score(unscaled_y_test, unscaled_preds)
+            logger.info(f"Successfully evaluated the model. mse: {mse}, mae: {mae}, r2_score: {r2}")
+        except Exception as e:
+            logger.exception(f"Unable to evaluate the model: {e}")
+            raise
         return (mse, mae, r2)
     
     def refresh_stonky(self, stock:str) -> None:
@@ -176,45 +245,56 @@ class Stonky:
         Args:
             stock (str): The ticker symbol of the stock data in Yahoo Finance Format.
         """
-        df = self.load_data(stock)
-        scaler = MinMaxScaler()
-        scaler.fit(df)
-        joblib.dump(scaler, f"models/{stock}_scaler.pkl")
-        scaled_df = scaler.transform(df)
-        sequences = []
-        targets =[]
-        for i in range(60, len(scaled_df)):
-            seq_x = scaled_df[i - LOOKBACK : i]
-            seq_y = scaled_df[i, FEATURES.index("Close")]
-            sequences.append(seq_x)
-            targets.append(seq_y)
-        X, y = np.array(sequences), np.array(targets)
-        X_train, _, y_train, _ = train_test_split(X, y, shuffle=True, test_size=0.2, random_state=42)
+        logger.info(f"Refreshing data, model and scaler of {stock}...")
+        try:
+            df = self.load_data(stock)
+            logger.info("Data has been refreshed.")
+            scaler = MinMaxScaler()
+            scaler.fit(df)
+            joblib.dump(scaler, f"models/{stock}_scaler.pkl")
+            logger.info("Scaler has been refreshed.")
+            scaled_df = scaler.transform(df)
+            sequences = []
+            targets =[]
+            logger.info("Preparing training set...")
+            for i in range(60, len(scaled_df)):
+                seq_x = scaled_df[i - LOOKBACK : i]
+                seq_y = scaled_df[i, FEATURES.index("Close")]
+                sequences.append(seq_x)
+                targets.append(seq_y)
+            x, y = np.array(sequences), np.array(targets)
+            x_train, _, y_train, _ = train_test_split(x, y, shuffle=True, test_size=0.2, random_state=42)
+            logger.info("Training set created successfully.")
 
-        model = Sequential([
-            LSTM(64, return_sequences=True, input_shape=(X.shape[1], X.shape[2])),
-            Dropout(0.2),
-            LSTM(32),
-            Dropout(0.2),
-            Dense(1)
-        ])
-        model.compile(
-            optimizer=Adam(learning_rate=0.001),
-            loss="mse",
-            metrics=["mae"]
-        )
+            model = Sequential([
+                LSTM(64, return_sequences=True, input_shape=(x.shape[1], x.shape[2])),
+                Dropout(0.2),
+                LSTM(32),
+                Dropout(0.2),
+                Dense(1)
+            ])
+            logger.info("Compiling the model...")
+            model.compile(
+                optimizer=Adam(learning_rate=0.001),
+                loss="mse",
+                metrics=["mae"]
+            )
 
-        print("Re-training model...")
-        model.fit(X_train, y_train, epochs=10, batch_size=32, validation_split=0.1, verbose=1)
-        print("\nSaving model...")
-        model.save(f"models/{stock}_stonky.h5")
+            logger.info("Re-training model...")
+            model.fit(x_train, y_train, epochs=EPOCHS, batch_size=BATCH_SIZE, validation_split=0.1, verbose=1)
+            logger.info("Saving model...")
+            model.save(f"models/{stock}_stonky.h5")
+            logger.info("System refreshed successfully.")
+        except Exception as e:
+            logger.exception(f"Unable to refresh the system: {e}")
+            raise
 
 if __name__ == "__main__":
     stonky = Stonky()
-    stock = input("Enter the Stock ticker symbol in yahoo finance format:")
-    days = int(input("Enter the number of days into the future to predict:"))
-    mse, mae, r2 = stonky.evaluate(stock)
-    future_predictions = stonky.predict(stock, days)
+    stock_ticker = input("Enter the Stock ticker symbol in yahoo finance format:")
+    num_days = int(input("Enter the number of days into the future to predict:"))
+    mse, mae, r2 = stonky.evaluate(stock_ticker)
+    future_predictions = stonky.predict(stock_ticker, num_days)
 
     print(f"Mean Squeared Error: {mse}")
     print(f"Mean Absolute Error: {mae}")
@@ -224,3 +304,4 @@ if __name__ == "__main__":
 
     print()
     print(type(future_predictions))
+
